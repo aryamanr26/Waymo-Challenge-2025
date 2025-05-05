@@ -8,9 +8,9 @@ import numpy as np
 import cv2
 
 # Print version information (optional)
-print(f"tensorflow: {tf.__version__}")
-print(f"numpy: {np.__version__}")
-print(f"cv2 (OpenCV): {cv2.__version__}")
+# print(f"tensorflow: {tf.__version__}")
+# print(f"numpy: {np.__version__}")
+# print(f"cv2 (OpenCV): {cv2.__version__}")
 
 # Append the Waymo API path for protobuf and ops imports
 WAYMO_SRC_PATH = os.path.join(os.path.dirname(__file__), 'waymo-open-dataset', 'src')
