@@ -129,7 +129,7 @@ if __name__ == "__main__":
     print("Build Dataset worked!\n")
 
     # === Display first instance of all variables ===
-    for id, batch in enumerate(train_ds):
+    for id, batch in enumerate(train_ds.take(1)):
         images, intent, past_states, future_states, pose_token, routing_token = batch
         print("First image tensor shape:", images[0].shape)
         print("First image tensor (min/max):",
