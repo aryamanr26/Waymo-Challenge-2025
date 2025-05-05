@@ -1,0 +1,11 @@
+name: waymo-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pip
+  - pip:
+      - tensorflow==2.11.0
+      - waymo-open-dataset-tf-2-11-0
+      - gcsfs
