@@ -1,3 +1,6 @@
+import os
+# Disable GPU for TensorFlow only
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 import torch
 from waymo_open_dataset.protos import end_to_end_driving_data_pb2 as wod_e2ed_pb2
