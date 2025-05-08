@@ -9,6 +9,8 @@ from vision_encoder import MultiViewQFormer
 from bev import BEVFeatureEncoder
 from tfusion import TemporalFusion
 from depth_model import DepthPredictor
+from embedding import PoseTokenEncoder, RouteTokenEncoder
+from planner_head import PlannerHead3D
 # tf.config.experimental.set_visible_devices([], 'GPU')  # Disable GPU for TF
 
 if __name__ == "__main__":
@@ -64,8 +66,8 @@ if __name__ == "__main__":
         bev_h=bev_h,
         bev_w=bev_w,
     )
-    bev_tokens = encoder(visual_tokens)
-    print("Final BEV tokens:", bev_tokens.shape)
+    bev_emb = encoder(visual_tokens)
+    print("Final BEV tokens:", bev_emb.shape)
 
     B, NM, D_t = 4, 128, 1024
     tf_module = TemporalFusion(num_positions=NM, d_model=D_t)
@@ -81,3 +83,20 @@ if __name__ == "__main__":
     # Optional: compute loss between two depths (demo)
     dummy_loss = predictor.photometric_loss(depth_map, depth_map * 0.95)
     print(f"SSIM-based photometric loss: {dummy_loss.item():.7f}")
+
+    batch = 4
+    # pose_token = torch.randn(batch, 64)
+    # route_token = torch.randn(batch, 16)
+    # bev = torch.randn(batch, 256, 1024)
+    # time_tokens = torch.randn(batch, 128, 1024)
+
+    pose_encoder = PoseTokenEncoder()
+    route_encoder = RouteTokenEncoder()
+    planner = PlannerHead3D(model_name="google/flan-t5-large", d_model=1024)
+
+    pose_emb = pose_encoder(pose_token)
+    route_emb = route_encoder(routing_token)
+    waypoints_mean, waypoints_var = planner(bev_emb, time_embedded, pose_emb, route_emb)
+
+    print("Waypoints mean:", waypoints_mean.shape)
+    print("Waypoints variance:", waypoints_var.shape)
