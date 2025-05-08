@@ -72,21 +72,21 @@ class BEVFeatureEncoder(nn.Module):
         assert QM == self.num_views * self.num_queries_per_view # reshape queries per view
         q = queries.reshape(B, self.num_views, self.num_queries_per_view * D)
         # q = queries.view(B, self.num_views, self.num_queries_per_view * D)  # [B, V, M*D]
-        print(f"Reshaped queries: {q.shape}")
+        #print(f"Reshaped queries: {q.shape}")
         bev_sum = torch.zeros(B, self.bev_dim, self.bev_h, self.bev_w, device=queries.device)
         for v in range(self.num_views):
             qv = q[:, v]  # [B, M*D]
             feat = self.dequery_head(qv).view(B, self.bev_dim, self.bev_h, self.bev_w)
-            print(f"Feature map for view {v}: {feat.shape}")
+            #print(f"Feature map for view {v}: {feat.shape}")
             H = self.homographies[v]
             warped = self.warp_feature(feat, H)
-            print(f"Warped feature for view {v}: {warped.shape}")
+            #print(f"Warped feature for view {v}: {warped.shape}")
             bev_sum += warped # flatten and project
-        print(f"Summed BEV features: {bev_sum.shape}")
+        #print(f"Summed BEV features: {bev_sum.shape}")
         bev_flat = bev_sum.view(B, self.bev_dim, -1).permute(0, 2, 1)  # [B, bev_h*bev_w, bev_dim]
-        print(f"Flattened BEV grid: {bev_flat.shape}")
+        #print(f"Flattened BEV grid: {bev_flat.shape}")
         bev_tokens = self.proj(bev_flat)  # [B, bev_h*bev_w, query_dim]
-        print(f"BEV tokens after projection: {bev_tokens.shape}")
+        #print(f"BEV tokens after projection: {bev_tokens.shape}")
         return bev_tokens
 
 # === Test snippet ===
