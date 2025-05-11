@@ -8,7 +8,7 @@ import torch
 # Set environment variables
 os.environ["TRANSFORMERS_NO_TF"] = "1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-# sys.stderr = open(os.devnull, 'w')
+sys.stderr = open(os.devnull, 'w')
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
 # Use GPU if available
@@ -75,10 +75,18 @@ if __name__ == "__main__":
         # print("Routing token shape:", routing_token.shape)
 
         # Estimate depth for each image in batch
-        depth_maps = [DPT.estimate_depth_batch(images[b]) for b in range(B)]
-        depth_maps = torch.stack(depth_maps).unsqueeze(-1).repeat(1, 1, 1, 1, 3)
-        depth_maps = depth_maps.permute(0, 1, 4, 2, 3).to(device)
+        # depth_maps = [DPT.estimate_depth_batch(images[b]) for b in range(B)]
+        # depth_maps = torch.stack(depth_maps).unsqueeze(-1).repeat(1, 1, 1, 1, 3)
+        # depth_maps = depth_maps.permute(0, 1, 4, 2, 3).to(device)
 
+        # Estimate depth for each image in batch
+        dimages = images.permute(0, 1, 4, 2, 3)
+        with torch.no_grad():
+            depth_maps = DPT.estimate_feature_batch(dimages)  # (B, V, 224, 224)
+            depth_maps = depth_maps.unsqueeze(2).repeat(1, 1, 3, 1, 1)  # (B, V, 3, 224, 224)
+
+        depth_maps = depth_maps.to(device)
+        print(depth_maps.shape)
         # Depth-based visual encoding
         depth_tokens = model(depth_maps)
         depth_emb = encoder(depth_tokens)

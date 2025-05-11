@@ -47,6 +47,44 @@ class DepthEstimator:
 
         predicted_depths = torch.from_numpy(np.stack(predicted_depths))
         return predicted_depths  # shape: (B, 224, 224)
+    
+    def estimate_feature_batch(self, image_batch):
+        """
+        Args:
+            image_batch (torch.Tensor): Tensor of shape (B, V, 3, H, W) in [0, 1] float range.
+
+        Returns:
+            torch.Tensor: Predicted depth maps of shape (B, V, 224, 224)
+        """
+        B, V, C, H, W = image_batch.shape
+
+        # Move to CPU + convert to numpy
+        image_batch = image_batch.detach().cpu().numpy()
+
+        # Convert to uint8
+        image_batch = (image_batch * 255).astype(np.uint8)
+
+        # Transpose to (B*V, H, W, 3) for processor
+        image_batch = image_batch.transpose(0, 1, 3, 4, 2).reshape(B * V, H, W, 3)
+
+        resized_images = [cv2.resize(img, (224, 224)) for img in image_batch]
+        inputs = self.feature_extractor(images=resized_images, return_tensors="pt").to(self.device)
+
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            predicted_depths = outputs.predicted_depth.squeeze()  # (B*V, H, W)
+
+        if predicted_depths.ndim == 2:
+            predicted_depths = predicted_depths.unsqueeze(0)
+
+        # Resize all depth maps back to (224, 224)
+        predicted_depths = [
+            cv2.resize(depth.cpu().numpy(), (224, 224), interpolation=cv2.INTER_LINEAR)
+            for depth in predicted_depths
+        ]
+
+        predicted_depths = torch.from_numpy(np.stack(predicted_depths)).view(B, V, 224, 224)
+        return predicted_depths
 
 
 def plot_front_3_camera_images(left_image, front_image, right_image, title="Front 3 Camera Views", depth=False):
