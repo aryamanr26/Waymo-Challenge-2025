@@ -16,10 +16,10 @@ class DepthEstimator:
         self.feature_extractor = DPTImageProcessor.from_pretrained(model_name)
         self.model = DPTForDepthEstimation.from_pretrained(model_name).to(self.device)
 
-    def estimate_depth_batch(self, image_batch):
+    def estimate_depth_single(self, image_batch):
         """
         Args:
-            image_batch (torch.Tensor or np.ndarray): Batch of shape (B, H, W, 3)
+            SINGLE (torch.Tensor or np.ndarray): Batch of shape (B, H, W, 3)
 
         Returns:
             torch.Tensor: Predicted depth maps of shape (B, 224, 224)
@@ -48,10 +48,10 @@ class DepthEstimator:
         predicted_depths = torch.from_numpy(np.stack(predicted_depths))
         return predicted_depths  # shape: (B, 224, 224)
     
-    def estimate_feature_batch(self, image_batch):
+    def estimate_depth_batch(self, image_batch):
         """
         Args:
-            image_batch (torch.Tensor): Tensor of shape (B, V, 3, H, W) in [0, 1] float range.
+            IMAGE_BATCH (torch.Tensor): Tensor of shape (B, V, 3, H, W) in [0, 1] float range.
 
         Returns:
             torch.Tensor: Predicted depth maps of shape (B, V, 224, 224)
@@ -83,7 +83,7 @@ class DepthEstimator:
             for depth in predicted_depths
         ]
 
-        predicted_depths = torch.from_numpy(np.stack(predicted_depths)).view(B, V, 224, 224)
+        predicted_depths = torch.from_numpy(np.stack(predicted_depths)).view(B, V, 224, 224).to(self.device)
         return predicted_depths
 
 

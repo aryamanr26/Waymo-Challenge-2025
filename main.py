@@ -8,7 +8,7 @@ import torch
 # Set environment variables
 os.environ["TRANSFORMERS_NO_TF"] = "1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-sys.stderr = open(os.devnull, 'w')
+# sys.stderr = open(os.devnull, 'w')
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
 # Use GPU if available
@@ -63,52 +63,50 @@ if __name__ == "__main__":
     for images, intent, past_states, future_states, pose_token, routing_token in train_ds.take(1):
         start_time = time.time()
 
+        # Move tensors to device
         images = torch.from_numpy(images.numpy()).to(device)
         pose_token = torch.from_numpy(pose_token.numpy()).to(device)
+        future_states = torch.from_numpy(future_states.numpy()).to(device)
         routing_token = torch.from_numpy(routing_token.numpy()).to(device)
 
         print("Stacked Image shape:", images.shape)
-        # print("Intent:", intent[0].item(), "->", INTENT_MAP.get(int(intent[0]), "Unknown"))
-        # print("Past states shape:", past_states[0].shape)
-        # print("Future states shape:", future_states[0].shape)
-        # print("Pose token shape:", pose_token.shape)
-        # print("Routing token shape:", routing_token.shape)
 
-        # Estimate depth for each image in batch
-        # depth_maps = [DPT.estimate_depth_batch(images[b]) for b in range(B)]
-        # depth_maps = torch.stack(depth_maps).unsqueeze(-1).repeat(1, 1, 1, 1, 3)
-        # depth_maps = depth_maps.permute(0, 1, 4, 2, 3).to(device)
-
-        # Estimate depth for each image in batch
+        # --- Depth Estimation ---
+        # Permute images for depth estimator: (B, V, H, W, C) -> (B, V, C, H, W)
         dimages = images.permute(0, 1, 4, 2, 3)
         with torch.no_grad():
-            depth_maps = DPT.estimate_feature_batch(dimages)  # (B, V, 224, 224)
+            depth_maps = DPT.estimate_depth_batch(dimages)  # (B, V, 224, 224)
             depth_maps = depth_maps.unsqueeze(2).repeat(1, 1, 3, 1, 1)  # (B, V, 3, 224, 224)
-
         depth_maps = depth_maps.to(device)
-        print(depth_maps.shape)
-        # Depth-based visual encoding
+        print("Depth maps shape:", depth_maps.shape)
+
+        # --- Depth-based Visual Encoding ---
         depth_tokens = model(depth_maps)
         depth_emb = encoder(depth_tokens)
         print("Depth Tokens:", depth_tokens.shape)
         print("Depth Embeddings:", depth_emb.shape)
 
-        # Normal visual encoding
-        images = images.permute(0, 1, 4, 2, 3).to(device)
+        # --- Normal Visual Encoding ---
+        images = images.permute(0, 1, 4, 2, 3).to(device)  # (B, V, C, H, W)
         visual_tokens = model(images)
         bev_emb = encoder(visual_tokens)
         time_embedded = tf_module(visual_tokens)
-
         print("Visual Tokens:", visual_tokens.shape)
         print("BEV Embeddings:", bev_emb.shape)
         print("Temporal Tokens:", time_embedded.shape)
 
+        # --- Pose & Route Encoding ---
         pose_emb = pose_encoder(pose_token)
         route_emb = route_encoder(routing_token)
 
-        # Planning
-        waypoints_mean, waypoints_var = planner(bev_emb, time_embedded, pose_emb, route_emb, depth_emb)
+        # --- Planning ---
+        waypoints_mean, waypoints_var = planner(
+            bev_emb, time_embedded, pose_emb, route_emb, depth_emb
+        )
         print("Waypoints mean shape:", waypoints_mean.shape)
 
         end_time = time.time()
         print(f"Inference time: {end_time - start_time:.4f} seconds")
+
+        print("Future States array:", future_states[0])
+        print("Predicted Future States array:", waypoints_mean[0])
