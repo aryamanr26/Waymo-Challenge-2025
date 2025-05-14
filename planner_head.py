@@ -38,6 +38,7 @@ class PlannerHead4D(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
         self.regressor = nn.Linear(d_model, num_waypoints * 3)
         self.mc_samples = mc_samples
+        self.training = True  # Set to True for training mode
 
     def forward_once(self, inputs_embeds):
         enc = self.t5_encoder.encoder(inputs_embeds=inputs_embeds)
