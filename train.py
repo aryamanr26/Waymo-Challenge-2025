@@ -30,23 +30,32 @@ from planner_head import PlannerHead4D
 from depth_est import DepthEstimator
 
 # Loss function
-def ade_loss(predictions, targets, mask=None):
+def ade_fde_loss(predictions, targets, mask=None, alpha=1.0, beta=0.8):
     """
     Args:
-        predictions: Tensor of shape (B, T, 2)
-        targets: Tensor of shape (B, T, 2)
-        mask: Optional boolean tensor of shape (B, T), indicating valid steps
+        predictions: Tensor of shape (B, T, 3)
+        targets: Tensor of shape (B, T, 3)
+        mask: Optional boolean tensor of shape (B, T)
+        alpha: Weight for ADE
+        beta: Weight for FDE
     Returns:
-        Scalar loss value
+        Combined ADE + FDE loss (scalar)
     """
+    # Euclidean distance over (x, y, z)
     l2_dist = torch.norm(predictions - targets, dim=-1)  # (B, T)
-    if mask is not None:
-        l2_dist = l2_dist * mask
-        valid = mask.sum(dim=-1).clamp(min=1.0)  # Avoid division by zero
-    else:
-        valid = predictions.shape[1]
 
-    return (l2_dist.sum(dim=-1) / valid).mean()
+    # ADE: average across time
+    if mask is not None:
+        ade = (l2_dist * mask).sum(dim=-1) / mask.sum(dim=-1).clamp(min=1.0)
+    else:
+        ade = l2_dist.mean(dim=-1)
+
+    # FDE: final timestep distance
+    final_pred = predictions[:, -1]  # (B, 3)
+    final_target = targets[:, -1]    # (B, 3)
+    fde = torch.norm(final_pred - final_target, dim=-1)  # (B,)
+
+    return (alpha * ade.mean()) + (beta * fde.mean())
 
 if __name__ == "__main__":
     # Dataset setup
@@ -124,7 +133,7 @@ if __name__ == "__main__":
             # print("Predicted Future States array:", waypoints_mean[0])
 
             # Compute loss
-            loss = ade_loss(waypoints_mean, future_states)
+            loss = ade_fde_loss(waypoints_mean, future_states)
             loss.backward()
             optimizer.step()
 
