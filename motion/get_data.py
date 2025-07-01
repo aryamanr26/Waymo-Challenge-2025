@@ -85,6 +85,8 @@ for data in dataset.take(1):  # just one frame
     print("First image shape:", images[0].shape)
     image_stack.append(images)
 
+
+# Total number of images generated: A x 91 x (1000 x 1000 x 3) -> A is the number of samples
 combined = [item for sublist in image_stack for item in sublist]
 anim = create_animation(combined[::5]) # Show every 5th frame for speed
 plt.show()
