@@ -12,7 +12,7 @@ from bev import BEVFeatureEncoder
 from tfusion import TemporalFusion
 from depth.depth_model import DepthPredictor
 from embedding import PoseTokenEncoder, RouteTokenEncoder
-from planner_head import PlannerHead3D
+from planner_head import LightTrajectoryHead
 # tf.config.experimental.set_visible_devices([], 'GPU')  # Disable GPU for TF
 
 if __name__ == "__main__":
@@ -30,19 +30,23 @@ if __name__ == "__main__":
     # ------------------------------
 
     # Batch and camera/view configuration
-    B, V, C, H, W = 4, 8, 3, 224, 224  # batch, views, channels, height, width
+    B, V, C, H, W = 4, 3, 3, 224, 224  # V must match WaymoE2EDataset (3 cams)
     M = 16                             # queries per view
-    NM, D = 128, 1024                  # temporal tokens, hidden dimension
+    NM, D = V * M, 1024                # temporal positions = V * M
     bev_dim, bev_h, bev_w = 64, 16, 16
 
     # ------------------------------
     # Multi-view query former
     # ------------------------------
-    model = MultiViewQFormer(num_views=V,
+    model = MultiViewQFormer(
+        num_views=V,
         num_queries_per_view=M,
-        vision_model_name="openai/clip-vit-large-patch14",
+        vision_backbone="clip",
+        vision_model_name="openai/clip-vit-base-patch16",
+        d_model=D,
         num_layers=2,
-        num_heads=16  # CLIP ViT-L uses 16 heads
+        num_heads=16,
+        use_thin_depth_fusion=True,
     ).to(device)
 
     # ------------------------------
@@ -75,9 +79,13 @@ if __name__ == "__main__":
     # Depth prediction and planning
     # ------------------------------
     predictor = DepthPredictor()
-    planner = PlannerHead3D(
-        model_name="google/flan-t5-large",
-        d_model=D
+    planner = LightTrajectoryHead(
+        d_model=D,
+        num_waypoints=20,
+        hidden_dim=D,
+        num_encoder_layers=2,
+        nhead=16,
+        dropout=0.1,
     ).to(device)
 
     # ------------------------------
@@ -95,7 +103,8 @@ if __name__ == "__main__":
     # ----------------------
     # Optimizer setup
     # ----------------------
-    params = list(encoder.parameters()) + \
+    params = list(model.parameters()) + \
+            list(encoder.parameters()) + \
             list(tf_module.parameters()) + \
             list(pose_encoder.parameters()) + \
             list(route_encoder.parameters()) + \

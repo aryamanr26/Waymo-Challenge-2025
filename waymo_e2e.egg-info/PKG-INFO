@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: waymo-e2e
+Version: 0.1.0
+Summary: Waymo Challenge E2E visual planning experiments
+Requires-Python: >=3.10
