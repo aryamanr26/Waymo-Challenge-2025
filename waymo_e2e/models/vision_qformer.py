@@ -57,6 +57,27 @@ class ThinDepthFusion(nn.Module):
         return patches + self.scale * self.mlp(patches)
 
 
+def _unfreeze_last_n_backbone_layers(module: nn.Module, backbone: str, n: int) -> None:
+    """Unfreeze the last *n* transformer blocks and the final layer-norm of the backbone."""
+    b = backbone.lower()
+    if b in ("clip", "siglip"):
+        layers = module.vision_model.encoder.layers
+        for layer in layers[-n:]:
+            for p in layer.parameters():
+                p.requires_grad = True
+        for p in module.vision_model.post_layernorm.parameters():
+            p.requires_grad = True
+    elif b == "dinov2":
+        layers = module.encoder.layer
+        for layer in layers[-n:]:
+            for p in layer.parameters():
+                p.requires_grad = True
+        for p in module.layernorm.parameters():
+            p.requires_grad = True
+    else:
+        raise ValueError(f"Unknown backbone '{backbone}' for partial unfreeze")
+
+
 def _load_backbone(backbone: str, model_name: str) -> tuple[nn.Module, int]:
     b = backbone.lower()
     if b == "clip":
@@ -109,6 +130,7 @@ class MultiViewQFormer(nn.Module):
         num_heads: int = 16,
         d_ff: int | None = None,
         freeze_backbone: bool = True,
+        unfreeze_last_n_layers: int = 0,
         use_thin_depth_fusion: bool = True,
     ):
         super().__init__()
@@ -120,6 +142,8 @@ class MultiViewQFormer(nn.Module):
         if freeze_backbone:
             for p in self.backbone.parameters():
                 p.requires_grad = False
+        if unfreeze_last_n_layers > 0:
+            _unfreeze_last_n_backbone_layers(self.backbone, vision_backbone, unfreeze_last_n_layers)
 
         self.patch_proj = nn.Linear(backbone_dim, d_model) if backbone_dim != d_model else nn.Identity()
         self.thin_depth_fusion = ThinDepthFusion(d_model) if use_thin_depth_fusion else None
@@ -140,20 +164,36 @@ class MultiViewQFormer(nn.Module):
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-        # images: (B, V, 3, H, W) in [0, 1]
-        B, V, C, H, W = images.shape
-        x = normalize_images(images, self.vision_backbone)
-        x = x.view(B * V, C, H, W)
+        """
+        images: (B, V, 3, H, W) or (B, T, V, 3, H, W) with T temporal frames in [0, 1].
+        Returns (B, N, D) or (B, T, N, D) respectively.
+        """
+        if images.dim() == 5:
+            B, V, C, H, W = images.shape
+            T = 1
+            images_bt = images.unsqueeze(1)
+        elif images.dim() == 6:
+            B, T, V, C, H, W = images.shape
+            images_bt = images
+        else:
+            raise ValueError(f"images must be 5D or 6D, got shape {images.shape}")
+
+        x = normalize_images(images_bt, self.vision_backbone)
+        x = x.reshape(B * T * V, C, H, W)
         patches = _backbone_forward(self.backbone, self.vision_backbone, x)
         patches = self.patch_proj(patches)
         P = patches.size(1)
-        patches = patches.view(B, V, P, self.d_model)
+        patches = patches.view(B, T, V, P, self.d_model)
         if self.thin_depth_fusion is not None:
             patches = self.thin_depth_fusion(patches)
         cam_ids = torch.arange(V, device=images.device)
-        cam_emb = self.camera_id_emb(cam_ids)
-        patches = patches + cam_emb.unsqueeze(0).unsqueeze(2)
-        memory = patches.view(B, V * P, self.d_model).permute(1, 0, 2)
-        queries = self.queries.unsqueeze(1).expand(-1, B, -1)
+        cam_emb = self.camera_id_emb(cam_ids).view(1, 1, V, 1, self.d_model)
+        patches = patches + cam_emb
+        # (V*P, B*T, D) memory — one independent Q-Former problem per (batch, time) slice
+        memory = patches.reshape(B * T, V * P, self.d_model).permute(1, 0, 2)
+        queries = self.queries.unsqueeze(1).expand(-1, B * T, -1)
         q_out = self.decoder(tgt=queries, memory=memory)
-        return q_out.permute(1, 0, 2)
+        q_out = q_out.permute(1, 0, 2).reshape(B, T, -1, self.d_model)
+        if T == 1:
+            return q_out.squeeze(1)
+        return q_out

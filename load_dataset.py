@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from waymo_dataset_loader import WaymoDatasetLoader
+from waymo_e2e.data import WaymoDatasetLoader
 from waymo_open_dataset.protos import end_to_end_driving_data_pb2 as wod_e2ed_pb2
 
 # Map intent integers to strings

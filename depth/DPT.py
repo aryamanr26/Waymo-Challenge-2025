@@ -4,8 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from transformers import DPTFeatureExtractor, DPTForDepthEstimation
-from waymo_dataset_loader import WaymoDatasetLoader
-from waymo_E2EDataset import WaymoE2EDataset
+from waymo_e2e.data import WaymoDatasetLoader, WaymoE2EDataset
 
 # Setup device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

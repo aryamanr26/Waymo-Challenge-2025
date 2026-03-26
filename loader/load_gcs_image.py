@@ -4,7 +4,7 @@ import os
 import numpy as np
 from pprint import pprint
 # import io
-from waymo_dataset_loader import WaymoDatasetLoader
+from waymo_e2e.data import WaymoDatasetLoader
 
 def extract_image_from_waymo_endtoend(file_path):
     if not tf.io.gfile.exists(file_path):

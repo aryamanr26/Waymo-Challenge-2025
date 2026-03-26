@@ -9,7 +9,7 @@ from waymo_e2e.models.bev_encoder import BEVFeatureEncoder
 from waymo_e2e.models.depth_estimator import DepthEstimator
 from waymo_e2e.models.embeddings import PoseTokenEncoder, RouteTokenEncoder
 from waymo_e2e.models.planner_head import LightTrajectoryHead, PlannerHead4D
-from waymo_e2e.models.temporal_fusion import TemporalFusion
+from waymo_e2e.models.temporal_fusion import TemporalCrossAttention
 from waymo_e2e.models.vision_qformer import MultiViewQFormer
 
 
@@ -22,17 +22,22 @@ class E2EConfig:
     num_queries_per_view: int = 16
     d_model: int = 1024
     bev_dim: int = 64
-    bev_h: int = 16
-    bev_w: int = 16
+    bev_h: int = 32
+    bev_w: int = 32
     image_h: int = 224
     image_w: int = 224
     # Single vision encoder: clip | dinov2 | siglip
     vision_backbone: str = "clip"
     vision_model_name: str = "openai/clip-vit-base-patch16"
     freeze_backbone: bool = True
+    # Number of trailing transformer blocks to unfreeze (0 = all frozen, 4 is a good starting point)
+    unfreeze_last_n_layers: int = 0
     use_thin_depth_fusion: bool = True
     qformer_layers: int = 2
     qformer_heads: int = 16
+    # Multi-frame history (1 = single-frame). Dataset must yield matching image rank.
+    num_temporal_frames: int = 1
+    temporal_attn_heads: int = 16
     # Planner: "light" (default) = small Transformer + MLP; "t5" = legacy Flan-T5 encoder
     planner_type: str = "light"
     planner_model_name: str = "google/flan-t5-large"
@@ -71,6 +76,7 @@ class E2EVisualPlanner(nn.Module):
             num_layers=c.qformer_layers,
             num_heads=c.qformer_heads,
             freeze_backbone=c.freeze_backbone,
+            unfreeze_last_n_layers=c.unfreeze_last_n_layers,
             use_thin_depth_fusion=c.use_thin_depth_fusion,
         )
         self.bev_encoder = BEVFeatureEncoder(
@@ -81,7 +87,11 @@ class E2EVisualPlanner(nn.Module):
             bev_h=c.bev_h,
             bev_w=c.bev_w,
         )
-        self.temporal = TemporalFusion(num_positions=nm, d_model=c.d_model)
+        self.temporal = TemporalCrossAttention(
+            num_token_slots=nm,
+            d_model=c.d_model,
+            num_heads=c.temporal_attn_heads,
+        )
         self.pose_encoder = PoseTokenEncoder(input_dim=c.pose_dim, d_model=c.d_model)
         self.route_encoder = RouteTokenEncoder(input_dim=c.route_dim, d_model=c.d_model)
         if c.planner_type == "light":
@@ -124,8 +134,10 @@ class E2EVisualPlanner(nn.Module):
             images_bvchw: (B, V, 3, H, W) in [0, 1] (per-backbone normalization applied inside vision).
         """
         visual_tokens = self.vision(images_bvchw)
-        bev_emb = self.bev_encoder(visual_tokens)
+        # TemporalCrossAttention collapses (B,T,N,D) → (B,N,D); for single-frame adds slot bias.
+        # BEVFeatureEncoder always expects (B,N,D), so temporal must run first.
         time_embedded = self.temporal(visual_tokens)
+        bev_emb = self.bev_encoder(time_embedded)
         pose_emb = self.pose_encoder(pose_token)
         route_emb = self.route_encoder(routing_token)
 

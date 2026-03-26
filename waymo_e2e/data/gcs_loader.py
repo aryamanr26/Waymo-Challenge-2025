@@ -1,20 +1,20 @@
-"""GCS file listing for Waymo E2E camera TFRecords."""
+"""GCS file listing for Waymo E2E camera TFRecords.
+
+This module intentionally avoids importing heavy Waymo TF custom ops at import-time.
+Listing GCS file paths does not require camera ops/protos; eager imports can fail on
+clusters with incompatible TensorFlow/absl binary combinations.
+"""
 
 import os
 import sys
 
 import gcsfs
 
-# Append the Waymo API path for protobuf and ops imports (repo root / waymo-open-dataset / src)
+# Keep local Waymo source discoverable for downstream scripts that may import it.
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 WAYMO_SRC_PATH = os.path.join(_REPO_ROOT, "waymo-open-dataset", "src")
 if WAYMO_SRC_PATH not in sys.path:
     sys.path.append(WAYMO_SRC_PATH)
-
-from waymo_open_dataset import dataset_pb2 as open_dataset  # noqa: F401
-from waymo_open_dataset.wdl_limited.camera.ops import py_camera_model_ops  # noqa: F401
-from waymo_open_dataset.protos import end_to_end_driving_data_pb2 as wod_e2ed_pb2  # noqa: F401
-from waymo_open_dataset.protos import end_to_end_driving_submission_pb2 as wod_e2ed_submission_pb2  # noqa: F401
 
 
 class WaymoDatasetLoader:

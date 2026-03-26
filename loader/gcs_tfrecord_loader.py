@@ -1,6 +1,6 @@
 import tensorflow as tf
 import os
-from waymo_dataset_loader import WaymoDatasetLoader
+from waymo_e2e.data import WaymoDatasetLoader
 
 # ========== 1. Decode JPEGs from TFRecord Example ==========
 def parse_waymo_example(record_bytes):

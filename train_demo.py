@@ -5,14 +5,13 @@ from torch import optim
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Torch using:", device)
 from waymo_open_dataset.protos import end_to_end_driving_data_pb2 as wod_e2ed_pb2
-from waymo_dataset_loader import WaymoDatasetLoader
-from waymo_E2EDataset import WaymoE2EDataset
-from vision_encoder import MultiViewQFormer
-from bev import BEVFeatureEncoder
-from tfusion import TemporalFusion
+from waymo_e2e.data import WaymoDatasetLoader, WaymoE2EDataset
+from waymo_e2e.models.bev_encoder import BEVFeatureEncoder
+from waymo_e2e.models.embeddings import PoseTokenEncoder, RouteTokenEncoder
+from waymo_e2e.models.planner_head import LightTrajectoryHead
+from waymo_e2e.models.temporal_fusion import TemporalFusion
+from waymo_e2e.models.vision_qformer import MultiViewQFormer
 from depth.depth_model import DepthPredictor
-from embedding import PoseTokenEncoder, RouteTokenEncoder
-from planner_head import LightTrajectoryHead
 # tf.config.experimental.set_visible_devices([], 'GPU')  # Disable GPU for TF
 
 if __name__ == "__main__":

@@ -3,8 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_msssim import ssim
 from transformers import CLIPVisionModel
-from waymo_dataset_loader import WaymoDatasetLoader
-from waymo_E2EDataset import WaymoE2EDataset
+from waymo_e2e.data import WaymoDatasetLoader, WaymoE2EDataset
 import matplotlib.pyplot as plt
 
 class MonocularDepthHead(nn.Module):

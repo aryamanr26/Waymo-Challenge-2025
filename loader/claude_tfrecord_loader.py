@@ -1,7 +1,7 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
-from waymo_dataset_loader import WaymoDatasetLoader
+from waymo_e2e.data import WaymoDatasetLoader
 
 AUTOTUNE = tf.data.AUTOTUNE
 BATCH_SIZE = 4  # Tune based on memory/GPU

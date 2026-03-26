@@ -9,8 +9,7 @@ from transformers import (
     DepthProImageProcessorFast, DepthProForDepthEstimation
 )
 from waymo_open_dataset.protos import end_to_end_driving_data_pb2 as wod_e2ed_pb2
-from waymo_dataset_loader import WaymoDatasetLoader
-from waymo_E2EDataset import WaymoE2EDataset
+from waymo_e2e.data import WaymoDatasetLoader, WaymoE2EDataset
 
 # Setup device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

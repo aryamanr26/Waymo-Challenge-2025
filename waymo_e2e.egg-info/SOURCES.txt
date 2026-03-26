@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 waymo_e2e/__init__.py
 waymo_e2e/pipeline.py
@@ -5,6 +6,9 @@ waymo_e2e.egg-info/PKG-INFO
 waymo_e2e.egg-info/SOURCES.txt
 waymo_e2e.egg-info/dependency_links.txt
 waymo_e2e.egg-info/top_level.txt
+waymo_e2e/architectures/__init__.py
+waymo_e2e/architectures/autovla/__init__.py
+waymo_e2e/architectures/baseline/__init__.py
 waymo_e2e/data/__init__.py
 waymo_e2e/data/e2e_tf_dataset.py
 waymo_e2e/data/gcs_loader.py
@@ -15,5 +19,8 @@ waymo_e2e/models/bev_encoder.py
 waymo_e2e/models/depth_estimator.py
 waymo_e2e/models/embeddings.py
 waymo_e2e/models/planner_head.py
+waymo_e2e/models/qwen_planner.py
 waymo_e2e/models/temporal_fusion.py
 waymo_e2e/models/vision_qformer.py
+waymo_e2e/prompts/__init__.py
+waymo_e2e/prompts/waymo_prompt.py

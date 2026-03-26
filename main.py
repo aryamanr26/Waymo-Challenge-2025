@@ -8,11 +8,10 @@ os.environ["TRANSFORMERS_NO_TF"] = "1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
-from waymo_dataset_loader import WaymoDatasetLoader
-from waymo_E2EDataset import WaymoE2EDataset
-from waymo_e2e.pipeline import E2EConfig, E2EVisualPlanner
+from waymo_e2e.data import WaymoDatasetLoader, WaymoE2EDataset
+from waymo_e2e.architectures.baseline import E2EConfig, E2EVisualPlanner
 
-if __name__ == "__main__":
+def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Torch using:", device)
 
@@ -26,8 +25,8 @@ if __name__ == "__main__":
         num_queries_per_view=16,
         d_model=1024,
         bev_dim=64,
-        bev_h=16,
-        bev_w=16,
+        bev_h=32,
+        bev_w=32,
         vision_backbone="clip",
         vision_model_name="openai/clip-vit-base-patch16",
         use_thin_depth_fusion=True,
@@ -49,3 +48,7 @@ if __name__ == "__main__":
         print(f"Inference time: {time.time() - t0:.4f}s")
         print("Future states:", future_states[0])
         print("Predicted:", waypoints_mean[0])
+
+
+if __name__ == "__main__":
+    main()
