@@ -23,8 +23,12 @@ if _REPO_ROOT not in sys.path:
 
 
 def main() -> int:
-    print("Waymo dataloader smoke test")
-    print("  repo:", _REPO_ROOT)
+    def log(msg: str) -> None:
+        print(msg, flush=True)
+
+    log("Waymo dataloader smoke test")
+    log("  repo: " + _REPO_ROOT)
+    log("  (importing TensorFlow / deps — can take 1–2 minutes on cold start)")
     try:
         from waymo_e2e.data import WaymoDatasetLoader, WaymoE2EDataset
     except ModuleNotFoundError as e:
@@ -42,7 +46,7 @@ def main() -> int:
         print(f"  {type(e).__name__}: {e}")
         return 1
 
-    print(f"  listed: train={len(train_files)} val={len(val_files)} test={len(test_files)}")
+    log(f"  listed: train={len(train_files)} val={len(val_files)} test={len(test_files)}")
     if not train_files:
         print("ERROR: no training TFRecords found.")
         return 1
@@ -53,7 +57,12 @@ def main() -> int:
     num_shards = int(os.environ.get("WAYMO_SMOKE_SHARDS", "1"))
 
     paths = train_files[:num_shards]
-    print(f"  building dataset: num_temporal_frames={nt} batch_size={batch_size} shards={len(paths)}")
+    log(
+        f"  building dataset: num_temporal_frames={nt} batch_size={batch_size} shards={len(paths)}"
+    )
+    log(
+        "  reading first batch from GCS (large shard + JPEG decode — often several minutes) ..."
+    )
 
     try:
         builder = WaymoE2EDataset(
@@ -69,14 +78,14 @@ def main() -> int:
     try:
         for batch in ds.take(1):
             images, intent, past_states, future_states, pose_token, routing_token = batch
-            print("  OK — first batch read successfully.")
-            print("    images         ", images.shape, images.dtype.name)
-            print("    intent         ", intent.shape, intent.dtype.name)
-            print("    past_states    ", past_states.shape, past_states.dtype.name)
-            print("    future_states  ", future_states.shape, future_states.dtype.name)
-            print("    pose_token     ", pose_token.shape, pose_token.dtype.name)
-            print("    routing_token  ", routing_token.shape, routing_token.dtype.name)
-            print("PASSED.")
+            log("  OK — first batch read successfully.")
+            log("    images         " + str(images.shape) + " " + images.dtype.name)
+            log("    intent         " + str(intent.shape) + " " + intent.dtype.name)
+            log("    past_states    " + str(past_states.shape) + " " + past_states.dtype.name)
+            log("    future_states  " + str(future_states.shape) + " " + future_states.dtype.name)
+            log("    pose_token     " + str(pose_token.shape) + " " + pose_token.dtype.name)
+            log("    routing_token  " + str(routing_token.shape) + " " + routing_token.dtype.name)
+            log("PASSED.")
             return 0
     except Exception as e:
         print("ERROR: failed to iterate first batch (TF decode / proto / data).")

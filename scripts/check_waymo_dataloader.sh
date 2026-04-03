@@ -18,4 +18,6 @@ if [[ ! -f "${SCRIPT_DIR}/check_waymo_dataloader.py" ]]; then
   exit 1
 fi
 
-exec python3 "${SCRIPT_DIR}/check_waymo_dataloader.py" "$@"
+# -u / PYTHONUNBUFFERED: SLURM logs are not a TTY; avoid silent multi-minute gaps.
+export PYTHONUNBUFFERED=1
+exec python3 -u "${SCRIPT_DIR}/check_waymo_dataloader.py" "$@"
